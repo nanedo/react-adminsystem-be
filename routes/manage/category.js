@@ -1,10 +1,51 @@
 var express = require('express');
 var router = express.Router();
+var mongoose = require('mongoose');
+var Category = require('../../models/service/category');
+var Util = require('../../models/service/util');
+var crypto = require('crypto');
+
+mongoose.connect('mongodb://127.0.0.1:27017/dumall');
+
+mongoose.connection.on('connected', () => {
+    console.log('connected')
+});
+
+mongoose.connection.on('error', () => {
+    console.log('error')
+});
+
+mongoose.connection.on('disconnected', () => {
+    console.log('disconnected')
+});
 
 // 1.获取品类子节点(平级)
 // categoryId(default=0)
 router.post('/get_category.do', (req, res, next) => {
-  res.json({
+  let categoryId = req.body.categoryId || 0;
+
+  let param = {
+    parent_id: categoryId
+  };
+
+  Category.find(param).exec().then(
+    (docs) => {
+      res.json({
+        'status': 0,
+        'msg': '',
+        'data': docs
+      });
+    },
+    (err) => {
+      res.json({
+        'status': 1,
+        'msg': err.message
+      });
+    }
+  );
+
+
+  /* res.json({
     "status": 0,
     "data": [
         {
@@ -26,17 +67,78 @@ router.post('/get_category.do', (req, res, next) => {
             "updateTime": 1480491941000
         }
     ]
-  });
+  }); */
 });
 
 // 2.增加节点
 // parentId(default=0)
 // categoryName
 router.post('/add_category.do', (req, res, next) => {
-  res.json({
-    "status": 0,
-    "msg": "添加品类成功"
-  });
+  let parent_id = req.body.parentId || 0;
+  let name = req.body.categoryName;
+  let now = new Date();
+
+  // 是否存在已有的名称
+  let getCategory = Category.find({
+    name,
+    parent_id
+  }).exec();
+  // 是否有对应的父类
+  let getPareintId = Category.find({
+    id: parent_id
+  }).exec();
+  // 查询当前的id 1升序， -1为降序
+  let allCategory = Category.find().sort({'id': -1}).exec();
+
+  Promise.all([getCategory, getPareintId, allCategory]).then(
+    (docs) => {
+      let hasCategory = docs[0].length;
+      let hasParentId = docs[1].length;
+      let pid = docs[2][0].id; // 获取到最大的id值
+
+      if(hasCategory){
+        res.json({
+          'status': 1,
+          'msg': '已存在相应的类别'
+        });
+      } else if (!hasParentId) {
+        res.json({
+          'status': 1,
+          'msg': '不存在对应的父级类别'
+        });
+      } else {
+        Category.create({
+          id: pid + 1,
+          parent_id,
+          name,
+          status: true,
+          sort_order: '',
+          create_time: now,
+          update_time: now,
+        }).then(
+          (doc) => {
+            res.json({
+              'status': 0,
+              'msg': ''
+            });
+          },
+          (err) => {
+            res.json({
+              'status': 1,
+              'msg': err.message
+            });
+          }
+        );
+      }
+
+    },
+    (err) => {
+      res.json({
+        'status': 1,
+        'msg': err.message
+      });
+    }
+  );
 });
 
 // 3.修改品类名字
@@ -45,6 +147,69 @@ categoryId
 categoryName
  */
 router.post('/set_category_name.do', (req, res, next) => {
+  let id = req.body.categoryId;
+  let name = req.body.categoryName;
+  let now = new Date();
+
+  // 是否存在已有的名称
+  let getCategory = Category.findOne({
+    id
+  }).exec();
+
+  getCategory.then(
+    (doc) => {
+      if(doc){
+        // 先找找同级下有没有同名称的
+        let parent_id = doc.parent_id;
+        Category.find({
+          parent_id,
+          name
+        }).then(
+          (docs) => {
+            if(docs.length){
+              res.json({
+                'status': 1,
+                'msg': '同父级下已存在相同名称'
+              });
+            }else{
+              doc.name = name;
+              doc.save().then(
+                () => {
+                  res.json({
+                    'status': 0,
+                    'msg': ''
+                  });
+                },
+                (err) => {
+                  res.json({
+                    'status': 1,
+                    'msg': err.message
+                  });
+                }
+              );
+            }
+          },
+          (err) => {
+            res.json({
+              'status': 1,
+              'msg': err.message
+            });
+          }
+        );
+      } else {
+        res.json({
+          'status': 1,
+          'msg': '无此类别'
+        });
+      }
+    },
+    (err) => {
+      res.json({
+        'status': 1,
+        'msg': err.message
+      });
+    }
+  );
   res.json({
     "status": 0,
     "msg": "更新品类名字成功"
@@ -54,6 +219,7 @@ router.post('/set_category_name.do', (req, res, next) => {
 // 4.获取当前分类id及递归子节点categoryId
 // categoryId
 router.post('/get_deep_category.do', (req, res, next) => {
+  let id = req.body.categoryId;
   res.json({
     "status": 0,
     "data": [

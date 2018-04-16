@@ -138,9 +138,6 @@ router.get('/list.do', (req, res, next) => {
   let pageSize = parseInt(req.query.pageSize, 10) || 10;
   let key = req.query.key || '';
 
- 
-
-
   let skip = (page-1)*pageSize;
   let params = {
       
@@ -154,10 +151,10 @@ router.get('/list.do', (req, res, next) => {
 
   User.find(params).skip(skip).limit(pageSize).exec().then(
     (docs) =>{
+      let list = [];
       if(docs && docs.length){
         // 是否需要过滤掉主用户
         // 需要隐藏信息
-        let list = [];
         docs.forEach((el, inx) => {
           if(key && el.username.indexOf(key) === -1){
           } else {
@@ -180,21 +177,15 @@ router.get('/list.do', (req, res, next) => {
 
           
         });
-
-        res.json({
-          status: 0,
-          msg: '',
-          'data': {
-            total: list.length,
-            list
-          }
-        });
-      } else {
-        res.json({
-          'status': 1,
-          'msg': '没有信息'
-        });
       }
+      res.json({
+        status: 0,
+        msg: '',
+        'data': {
+          total: list.length,
+          list
+        }
+      });
     },
     (err) => {
       res.json({

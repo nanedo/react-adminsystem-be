@@ -46,18 +46,19 @@ app.use('/manage', manage);
 app.use((req, res, next) => {
   // 必要是检查来源是否合法，如请求域名判断
   let session = req.session;
-  if(session.user){
+  console.log('req path: ',req.path)
+  if(session.user || /^\/public\//.test(req.path)){
+    //如果登录或者是静态路径，则放行
     next();
   } else {
-    console.log('req path: ',req.path)
-    if(!/^\/manage\/user\/login\.do)/.test(req.path)){
+    if(/^\/manage\/user\/login\.do/.test(req.path)){
+      next();
+    } else {
       res.json({
         'status': 10,
         'msg': '用户未登录,请登录',
         'data': {}
       });
-    } else {
-      next();
     }
     
   }

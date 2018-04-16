@@ -1,22 +1,109 @@
 var express = require('express');
+var fs = require('fs');
+var multer = require('multer');
+const path = require('path');
+var crypto = require('crypto');
+var mongoose = require('mongoose');
 var router = express.Router();
+var Product = require('../../models/service/product');
+var Util = require('../../models/service/util');
+
+// 创建文件夹
+var createFolder = function(folder){
+  try{
+      // 测试 path 指定的文件或目录的用户权限,我们用来检测文件是否存在
+      // 如果文件路径不存在将会抛出错误"no such file or directory"
+      fs.accessSync(folder); 
+  }catch(e){
+      // 文件夹不存在，以同步的方式创建文件目录。
+      fs.mkdirSync(folder);
+  }  
+};
+var uploadFolder = 'public/upload/';
+createFolder(uploadFolder);
+
+var storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+      cb(null, uploadFolder)
+  },
+  filename: function (req, file, cb) {
+      var fileformat = (file.originalname).split('.');
+      cb(null, file.fieldname+'-'+Date.now()+'.'+fileformat[fileformat.length-1]);
+  }
+});
+
+var upload = multer({
+  storage: storage
+  // dest: uploadFolder
+  // fileFilter: '', //限定文件类型
+  // limits: 1 * 1024 * 1024 // 限定文件大小，，默认是1MB
+});
+
+
+
+mongoose.connect('mongodb://127.0.0.1:27017/dumall');
+
+mongoose.connection.on('connected', () => {
+    console.log('connected')
+});
+
+mongoose.connection.on('error', () => {
+    console.log('error')
+});
+
+mongoose.connection.on('disconnected', () => {
+    console.log('disconnected')
+});
 
 // 1.产品list
 // pageNum(default=1)
 // pageSize(default=10)
 
 router.get('/list.do', (req, res, next) => {
-  res.json({
+  let page = parseInt(req.query.pageNum, 10) || 1;
+  let pageSize = parseInt(req.query.pageSize, 10) || 10;
+
+  let skip = (page-1)*pageSize;
+
+  Product.find().skip(skip).limit(pageSize).exec().then(
+    (docs) =>{
+      let list = [];
+      if(docs && docs.length){
+        // 需要隐藏信息
+        docs.forEach((el, inx) => {
+            list.push({
+              "id":el.id,
+              "categoryId":el.category_id,
+              "name":el.name,
+              "subtitle":el.subtitle,
+              "mainImage":el.main_image,
+              "status":el.status,
+              "price":el.price
+            });
+        });
+
+      }
+      res.json({
+        status: 0,
+        msg: '',
+        'data': {
+          total: list.length,
+          list
+        }
+      });
+    },
+    (err) => {
+      res.json({
+        'status': 1,
+        'msg': err.message
+      });
+    }
+  );
+
+  /* res.json({
     "status": 0,
     "data": {
-        "pageNum": 1,
-        "pageSize": 10,
-        "size": 2,
-        "orderBy": null,
-        "startRow": 1,
-        "endRow": 2,
         "total": 2,
-        "pages": 1,
         "list": [
             {
                 "id": 1,
@@ -36,21 +123,9 @@ router.get('/list.do', (req, res, next) => {
                 "status":1,
                 "price": 2999.11
             }
-        ],
-        "firstPage": 1,
-        "prePage": 0,
-        "nextPage": 0,
-        "lastPage": 1,
-        "isFirstPage": true,
-        "isLastPage": true,
-        "hasPreviousPage": false,
-        "hasNextPage": false,
-        "navigatePages": 8,
-        "navigatepageNums": [
-            1
         ]
     }
-  });
+  }); */
 });
 
 // 2.产品搜索
@@ -59,41 +134,61 @@ router.get('/list.do', (req, res, next) => {
 // pageNum(default=1)
 // pageSize(default=10)
 router.get('/search.do', (req, res, next) => {
-  res.json({
-    "status": 0,
-    "data": {
-        "pageNum": 1,
-        "pageSize": 10,
-        "size": 1,
-        "orderBy": null,
-        "startRow": 1,
-        "endRow": 1,
-        "total": 1,
-        "pages": 1,
-        "list": [
-            {
-                "id": 1,
-                "categoryId": 3,
-                "name": "iphone7",
-                "subtitle": "双十一促销",
-                "mainImage": "mainimage.jpg",
-                "price": 7199.22
-            }
-        ],
-        "firstPage": 1,
-        "prePage": 0,
-        "nextPage": 0,
-        "lastPage": 1,
-        "isFirstPage": true,
-        "isLastPage": true,
-        "hasPreviousPage": false,
-        "hasNextPage": false,
-        "navigatePages": 8,
-        "navigatepageNums": [
-            1
-        ]
+  let page = parseInt(req.query.pageNum, 10) || 1;
+  let pageSize = parseInt(req.query.pageSize, 10) || 10;
+  let productName = req.query.productName || '';
+  let productId = req.query.productId || '';
+
+
+  let skip = (page-1)*pageSize;
+  let params = {
+      
+  };
+
+  Product.find(params).skip(skip).limit(pageSize).exec().then(
+    (docs) =>{
+      let list = [];
+      if(docs && docs.length){
+        // 需要隐藏信息
+        docs.forEach((el, inx) => {
+          let flag = true;
+          // 当搜索参数为productId
+          if(productId && String(el.id).indexOf(productId) === -1){
+            flag = false;
+          }
+          // productName
+          if(productName && el.name.indexOf(productName) === -1){
+            flag = false;
+          } 
+          if(flag) {
+            list.push({
+              "id":parseInt(el.id, 10),
+              "categoryId":parseInt(el.category_id, 10),
+              "name":el.name,
+              "subtitle":el.subtitle,
+              "mainImage":el.main_image,
+              "status":parseInt(el.status, 10),
+              "price":parseInt(el.price,10)
+            });
+          }
+        });
+      }
+      res.json({
+        status: 0,
+        msg: '',
+        'data': {
+          total: list.length,
+          list
+        }
+      });
+    },
+    (err) => {
+      res.json({
+        'status': 1,
+        'msg': err.message
+      });
     }
-  });
+  );
 });
 
 // 3.图片上传
@@ -103,20 +198,65 @@ router.get('/search.do', (req, res, next) => {
     <input type="submit" value="upload"/>
 </form> 
 */
-router.post('/upload.do', (req, res, next) => {
-  res.json({
-    "status": 0,
-    "data": {
-        "uri": "e6604558-c0ff-41b9-b6e1-30787a1e3412.jpg",
-        "url": "http://img.happymmall.com/e6604558-c0ff-41b9-b6e1-30787a1e3412.jpg"
+// 使用中间件
+// var uploader = multer().single('upload_file');
+router.post('/upload.do', upload.single('upload_file'), (req, res, next) => {
+  //uploader(req, res, (err) => {
+    if(!req.file) {
+      res.json({
+        "status": 1,
+        "msg": err.msg
+      });
+      return ;
     }
-  });
+    var file = req.file;
+    console.log('文件类型：%s', file.mimetype);
+    console.log('原始文件名：%s', file.originalname);
+    console.log('文件大小：%s', file.size);
+    console.log('文件保存路径：%s', file.path);
+    console.log('文件保存名稱：%s', file.filename);
+    let filePath = file.path || '上传失败';
+    res.json({
+      "status": 0,
+      "data": {
+          "uri": file.filename,
+          "url": '/'+filePath.replace(/\\/g, '/')
+      }
+    });
+  //});
 });
 
 // 4.产品详情
 // productId
 router.get('/detail.do', (req, res, next) => {
-  res.json({
+  let id = req.body.productId;
+
+  Product.findOne({
+    id
+  }).then(
+    (doc) => {
+      if(doc){
+        res.json({
+          'status':0,
+          'msg': '',
+          'data': doc
+        });
+      }else{
+        res.json({
+          'status': 1,
+          'msg': '查无此商品'
+        });
+      }
+    },
+    (err) => {
+      res.json({
+        'status': 1,
+        'msg': err.message
+      });
+    }
+  );
+
+  /* res.json({
     "status": 0,
     "data": {
         "id": 2,
@@ -134,17 +274,53 @@ router.get('/detail.do', (req, res, next) => {
         "createTime": "2016-11-20 14:21:53",
         "updateTime": "2016-11-20 14:21:53"
     }
-  });
+  }); */
 });
 
 // 5.产品上下架
 // productId
 // status
-router.get('/set_sale_status.do', (req, res, next) => {
-  res.json({
-    "status": 0,
-    "data": "修改产品状态成功"
-  });
+router.post('/set_sale_status.do', (req, res, next) => {
+  let id = req.body.productId;
+  let status = req.body.status;
+
+  Product.findOne({
+    id
+  }).exec().then(
+    (doc) => {
+      if(doc){
+        //修改状态然后保存
+        doc.status = status;
+        doc.save().then(
+          () => {
+            res.json({
+              'status': 0,
+              'msg': '修改成功',
+              'data': {
+                'status': doc.status
+              }
+            });
+          }, (err) => {
+            res.json({
+              'status': 1,
+              'msg': err.message
+            });
+          }
+        );
+      } else {
+        res.json({
+          'status': 1,
+          'msg': '查无此商品:'+ id +' : '+ doc
+        });
+      }
+    },
+    (err) => {
+      res.json({
+        'status': 1,
+        'msg': err.message
+      });
+    }
+  );
 });
 
 // 6.新增OR更新产品
