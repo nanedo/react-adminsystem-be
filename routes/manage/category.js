@@ -76,7 +76,7 @@ router.post('/get_category.do', (req, res, next) => {
 router.post('/add_category.do', (req, res, next) => {
   let parent_id = req.body.parentId || 0;
   let name = req.body.categoryName;
-  let now = new Date();
+  let now = new Date().toISOString();
 
   // 是否存在已有的名称
   let getCategory = Category.find({
@@ -101,7 +101,7 @@ router.post('/add_category.do', (req, res, next) => {
           'status': 1,
           'msg': '已存在相应的类别'
         });
-      } else if (!hasParentId) {
+      } else if (parent_id!==0 && !hasParentId) {
         res.json({
           'status': 1,
           'msg': '不存在对应的父级类别'
@@ -173,6 +173,7 @@ router.post('/set_category_name.do', (req, res, next) => {
               });
             }else{
               doc.name = name;
+              doc.status = doc.status === 'TRUE' ? true : false;
               doc.save().then(
                 () => {
                   res.json({
@@ -202,35 +203,55 @@ router.post('/set_category_name.do', (req, res, next) => {
           'msg': '无此类别'
         });
       }
-    },
-    (err) => {
-      res.json({
-        'status': 1,
-        'msg': err.message
-      });
     }
-  );
-  res.json({
-    "status": 0,
-    "msg": "更新品类名字成功"
+  ).catch((err) => {
+    res.json({
+      'status': 1,
+      'msg': err.message
+    });
   });
 });
 
 // 4.获取当前分类id及递归子节点categoryId
 // categoryId
 router.post('/get_deep_category.do', (req, res, next) => {
-  let id = req.body.categoryId;
-  res.json({
-    "status": 0,
-    "data": [
-        100009,
-        100010,
-        100001,
-        100006,
-        100007,
-        100008
+  let id = parseInt(req.body.categoryId, 10) || 0;
+
+  Category.find({
+    $or: [
+      {id},{parent_id:id}
     ]
-  });
+  }, {
+    "id":1,
+    "parent_id":1,// 父类别id当id=0时说明是根节点,一级类别
+    "name":1,
+    "status":1, // 类别状态true-正常,false-已废弃
+    "sort_order": 1
+  }).then(
+    (docs) => {
+      if(docs.length){
+        res.json({
+          status: 0,
+          msg: '',
+          data: docs
+        });
+      } else {
+        res.json({
+          status: 1,
+          msg: '没找到对应的ID信息~',
+          data: ''
+        });
+      }
+    }
+  ).catch(
+    (err) => {
+      res.json({
+        status: 1,
+        msg: err.message,
+        data: ''
+      });
+    }
+  );
 });
 
 module.exports = router;

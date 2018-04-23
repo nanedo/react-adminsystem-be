@@ -38,10 +38,6 @@ app.use(session({
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', routes);
-app.use('/users', users);
-app.use('/manage', manage);
-
 // 拦截需登录接口
 app.use((req, res, next) => {
   // 必要是检查来源是否合法，如请求域名判断
@@ -63,6 +59,10 @@ app.use((req, res, next) => {
     
   }
 });
+
+app.use('/', routes);
+app.use('/users', users);
+app.use('/manage', manage);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

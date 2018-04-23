@@ -4,7 +4,7 @@ var shippingInfoSchema = new mongoose.Schema({
     "id":Number,
     "user_id":Number,// 
     "receiver_name":String,
-    "receiver_phone":Boolean, // 收货固定电话
+    "receiver_phone":String, // 收货固定电话
     "receiver_mobile": String, // 收货移动电话
     "receiver_province": String,
     "receiver_city": String,

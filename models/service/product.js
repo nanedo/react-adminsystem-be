@@ -3,14 +3,15 @@ var mongoose = require('mongoose');
 var productSchema = new mongoose.Schema({
     "id":Number,
     "category_id":Number,
-    "name":String,
-    "subtitle":String,
-    "main_image": String,
-    "sub_images": String,
-    "detail": String,
-    "price": Number,
-    "stock": Number,
-    "status": Number,
+    "parentCategoryId":Number,
+    "name":{type:String, max:100},
+    "subtitle":{type:String, max:300},
+    "main_image": {type:String, max:1000},
+    "sub_images": {type:String, max:10000},
+    "detail": {type:String, max:10000},
+    "price": {type:Number, max:1000000},
+    "stock": {type:Number, max:10000},
+    "status": Number, //1-在售 2-下架 3-删除
     "create_time": String,
     "update_time": String
 });

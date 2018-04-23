@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 var mongoose = require('mongoose');
 var User = require('../../models/service/user');
+var FUser = require('../../models/front/user');
 var Util = require('../../models/service/util');
 var crypto = require('crypto');
 
@@ -66,7 +67,6 @@ router.post('/login.do', (req, res, next) => {
                               email: doc.email,
                               phone: doc.phone,
                               role: doc.role,
-                              role: doc.role,
                               updateTime: doc.updateTime
                           }
                         });
@@ -84,18 +84,6 @@ router.post('/login.do', (req, res, next) => {
     });
   }
 
-/*   res.json({
-    "status": 0,
-    "data": {
-        "id": 12,
-        "username": "aaa",
-        "email": "aaa@163.com",
-        "phone": null,
-        "role": 0,
-        "createTime": 1479048325000,
-        "updateTime": 1479048325000
-    }
-  }); */
 });
 
 // 后台管理员退出
@@ -115,18 +103,6 @@ router.post('/logout.do', (req, res, next) => {
         });
     }
   });
-  /* res.json({
-    "status": 0,
-    "data": {
-        "id": 12,
-        "username": "aaa",
-        "email": "aaa@163.com",
-        "phone": null,
-        "role": 0,
-        "createTime": 1479048325000,
-        "updateTime": 1479048325000
-    }
-  }); */
 });
 
 // 2.用户列表
@@ -140,7 +116,7 @@ router.get('/list.do', (req, res, next) => {
 
   let skip = (page-1)*pageSize;
   let params = {
-      
+      role: 0
   };
   if(key){
      // 要在mongodb中搜索，需要先建立全文索引
@@ -194,40 +170,6 @@ router.get('/list.do', (req, res, next) => {
       });
     }
   );
-
-  /* res.json({
-    "status": 0,
-    "data": {
-        "orderBy": null,
-        "total": 16,
-        "list": [
-            {
-                "id":17,
-                "username":"rosen",
-                "password":"",
-                "email":"rosen1@happymmall.com",
-                "phone":"15011111111",
-                "question":"啊哈哈",
-                "answer":"服不服",
-                "role":0,
-                "createTime":1489719093000,
-                "updateTime":1513682138000
-            },
-            {
-                "id":16,
-                "username":"efas",
-                "password":"",
-                "email":"adsasd@happymmall.com",
-                "phone":"12121212121",
-                "question":"哈哈",
-                "answer":"服服",
-                "role":0,
-                "createTime":1489719093000,
-                "updateTime":1513682138000
-            }
-        ]
-    }
-  }); */
 });
 
 
